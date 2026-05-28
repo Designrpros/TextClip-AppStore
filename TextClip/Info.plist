@@ -1,20 +1,20 @@
-<?xml version="1.0.2" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0.2">
+<plist version="1.0">
 <dict>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>NSScreenCaptureUsageDescription</key>
-    <string>TextClip needs to capture the screen to recognize text and QR codes.</string>
-    <key>SMAppService</key>
-    <dict>
-        <key>LoginItems</key>
-        <array>
-            <dict>
-                <key>Identifier</key>
-                <string>Alcatelz.TextClip</string>
-            </dict>
-        </array>
-    </dict>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>TextClip needs to capture the screen to recognize text and QR codes.</string>
+	<key>SMAppService</key>
+	<dict>
+		<key>LoginItems</key>
+		<array>
+			<dict>
+				<key>Identifier</key>
+				<string>Alcatelz.TextClip</string>
+			</dict>
+		</array>
+	</dict>
 </dict>
 </plist>

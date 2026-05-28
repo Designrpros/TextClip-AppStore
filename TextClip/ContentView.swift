@@ -71,25 +71,13 @@ struct ContentView: View {
                             UserDefaults.standard.set(newValue, forKey: "dontShowAgain")
                         }
 
-                    // Privacy & Security button
+                    // Privacy & Security button (Keep this one, screen recording is still required!)
                     Button(action: {
                         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
                             NSWorkspace.shared.open(url)
                         }
                     }) {
                         Text("Open Screen Recording Settings")
-                            .font(.system(.subheadline, design: .rounded, weight: .medium))
-                    }
-                    .buttonStyle(.link)
-                    .foregroundStyle(Color.accentColor)
-                    
-                    // Accessibility Settings button
-                    Button(action: {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Text("Open Accessibility Settings")
                             .font(.system(.subheadline, design: .rounded, weight: .medium))
                     }
                     .buttonStyle(.link)

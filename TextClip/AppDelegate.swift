@@ -1,27 +1,19 @@
 import Cocoa
 import SwiftUI
-import CoreGraphics
-import Accessibility
 import OSLog
+import HotKey // 1. Import the newly added library
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     
     private var statusItem: NSStatusItem?
-    private var eventTap: CFMachPort?
-    private var hasShownAccessibilityAlert = false
     private var mainWindowController: NSWindowController?
+    
+    // 2. Keep a strong reference to the HotKey instance so it doesn't get deallocated
+    private var globalHotKey: HotKey?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         setupGlobalHotkey()
-        requestAccessibilityPermission()
-    }
-    
-    func applicationWillTerminate(_ notification: Notification) {
-        if let eventTap = eventTap {
-            CGEvent.tapEnable(tap: eventTap, enable: false)
-            self.eventTap = nil
-        }
     }
     
     private func setupMenuBar() {
@@ -42,72 +34,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.menu = menu
     }
     
-    private func requestAccessibilityPermission() {
-        os_log(.info, log: OSLog(subsystem: "com.Alcatelz.textclip", category: "AppDelegate"), "Checking Accessibility permission")
-        
-        guard !hasShownAccessibilityAlert else {
-            os_log(.info, log: OSLog(subsystem: "com.Alcatelz.textclip", category: "AppDelegate"), "Accessibility alert already shown, skipping")
-            return
-        }
-        
-        let accessibilityEnabled = AXIsProcessTrusted()
-        if !accessibilityEnabled {
-            os_log(.info, log: OSLog(subsystem: "com.Alcatelz.textclip", category: "AppDelegate"), "Prompting for Accessibility permission")
-            hasShownAccessibilityAlert = true
-            DispatchQueue.main.async {
-                let alert = NSAlert()
-                alert.messageText = "Accessibility Permission Required"
-                alert.informativeText = "TextClip needs Accessibility permission to enable the global Cmd+Shift+2 shortcut. Please enable it in System Settings > Privacy & Security > Accessibility and relaunch TextClip."
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: "Open System Settings")
-                alert.addButton(withTitle: "Cancel")
-                if let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) {
-                    alert.beginSheetModal(for: window) { response in
-                        if response == .alertFirstButtonReturn {
-                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }
-                    }
-                } else {
-                    if alert.runModal() == .alertFirstButtonReturn {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }
-                }
-            }
-        } else {
-            hasShownAccessibilityAlert = true
-        }
-    }
-    
     private func setupGlobalHotkey() {
-        let eventMask = (1 << CGEventType.keyDown.rawValue)
-        func eventTapCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
-            guard let refcon else { return Unmanaged.passRetained(event) }
-            let appDelegate = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue()
-            if type == .keyDown {
-                let flags = event.flags
-                let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-                if flags.contains(.maskCommand) && flags.contains(.maskShift) && keyCode == 19 {
-                    os_log(.info, log: OSLog(subsystem: "com.Alcatelz.textclip", category: "AppDelegate"), "Cmd+Shift+2 triggered")
-                    DispatchQueue.main.async { appDelegate.captureText() }
-                    return nil
-                }
+        // 3. Initialize the hotkey for Cmd + Shift + 2
+        globalHotKey = HotKey(key: .two, modifiers: [.command, .shift])
+        
+        // 4. Set up what happens when the key combination is pressed
+        globalHotKey?.keyDownHandler = { [weak self] in
+            os_log(.info, log: OSLog(subsystem: "com.Alcatelz.textclip", category: "AppDelegate"), "Cmd+Shift+2 triggered via HotKey framework")
+            
+            // 5. Resolves the MainActor isolation error safely
+            Task { @MainActor in
+                self?.captureText()
             }
-            return Unmanaged.passRetained(event)
-        }
-        
-        eventTap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: CGEventMask(eventMask), callback: eventTapCallback, userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()))
-        
-        if let eventTap {
-            let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-            CGEvent.tapEnable(tap: eventTap, enable: true)
-            os_log(.info, log: OSLog(subsystem: "com.Alcatelz.textclip", category: "AppDelegate"), "Global event tap enabled for Cmd+Shift+2")
-        } else {
-            os_log(.error, log: OSLog(subsystem: "com.Alcatelz.textclip", category: "AppDelegate"), "Failed to create event tap")
         }
     }
     
@@ -135,14 +73,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @MainActor @objc func openMainWindow() {
-        // If the window already exists, just bring it to the front.
         if let windowController = mainWindowController, windowController.window?.isVisible == true {
             windowController.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        // Otherwise, create a new window.
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 450),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
